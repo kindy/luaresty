@@ -1,0 +1,6 @@
+[submodule "inc/lua-TestMore"]
+	path = inc/lua-TestMore
+	url = https://github.com/fperrad/lua-TestMore.git
+[submodule "inc/lua-TestLongString"]
+	path = inc/lua-TestLongString
+	url = https://github.com/fperrad/lua-TestLongString.git

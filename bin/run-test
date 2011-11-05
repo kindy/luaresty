@@ -1,0 +1,67 @@
+#/bin/bash
+
+# runbyngx port pwd(prefix) file
+
+dir_pwd="$(pwd -P)"
+dir_prefix="$(cd $(dirname $0) && pwd -P)/"
+cd $dir_pwd
+ngx_port=$1
+ngx_root=$dir_prefix'runbyngx_root_'$ngx_port
+ngx_bin="/opt/openresty/nginx/sbin/nginx -p $ngx_root/ -c conf/nginx.conf"
+ngx_fname='$arg__f'
+lua_error_file="$ngx_root/logs/lua-error.log"
+
+if [ ! -d $ngx_root/conf ]; then
+    mkdir -p $ngx_root/conf $ngx_root/logs
+fi
+
+echo '' >$ngx_root/conf/main.conf
+echo '' >$ngx_root/conf/http.conf
+echo '' >$ngx_root/conf/loc.conf
+
+# 生成自定义conf内容
+$dir_prefix/test-gen-conf $ngx_root/conf $3
+
+cat >$ngx_root/conf/nginx.conf <<EOF
+worker_processes  1;
+error_log logs/error.log debug;
+pid        logs/nginx.pid;
+
+include main.conf;
+
+events {
+    worker_connections  256;
+}
+
+http {
+    default_type  application/octet-stream;
+    access_log logs/access.log;
+    keepalive_timeout  0;
+
+    include http.conf;
+    server {
+        listen $ngx_port;
+        set \$lua_log_path $lua_error_file;
+        location = /__t {
+            content_by_lua_file $2/$ngx_fname;
+        }
+
+        include loc.conf;
+    }
+}
+EOF
+
+if [ ! -f $ngx_root/logs/nginx.pid ]; then
+    ($ngx_bin -t && $ngx_bin || (echo 'start ngx error'; exit 1)) >>$ngx_root/run.log 2>&1
+else
+    ($ngx_bin -sreload && sleep 1 || (echo 'restart ngx error'; exit 1)) >>$ngx_root/run.log 2>&1
+fi
+
+curl -s "localhost:$ngx_port/__t?_f=$3"
+#| tee -a $ngx_root/logs/content
+$ngx_bin -sstop >>$ngx_root/run.log 2>&1
+
+if [ -f $lua_error_file ]; then
+    cat $lua_error_file 1>&2
+    #rm -f $lua_error_file
+fi

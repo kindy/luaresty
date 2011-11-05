@@ -1,0 +1,19 @@
+nginx-root/
+    conf/
+        nginx.conf
+        mime.conf
+        srv/
+            main.conf
+    logs/
+    html/
+        static/
+    luaresty/
+        bin/
+            gen-ups
+            gen-loc
+        config.lua
+        index.lua
+        view/
+        {app}/
+        c/
+            index.lua

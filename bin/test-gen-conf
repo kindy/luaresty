@@ -1,0 +1,65 @@
+#!/usr/bin/env perl
+
+my $conf_dir = $ARGV[0];
+my $file = $ARGV[1];
+
+open my $in, '<', $file or die("open file $file error");
+
+my @files;
+my ($fname, $body);
+
+my $_in = 0;
+my $_out = 0;
+
+#warn $conf_dir;
+#warn $file;
+
+while (<$in>) {
+    if (!$_out && $_in) {
+        if (/^--\]===\]$/) {
+            $_out = 1;
+            #warn 'exit';
+            break;
+        } elsif (/^--- (\S+)$/) {
+            if ($fname) {
+                push @files, [$fname, $body];
+            }
+
+            $fname = $1;
+            undef $body;
+        } else {
+            $body .= $_;
+        }
+    } elsif (/^--\[===\[$/) {
+        $_in = 1;
+    }
+}
+
+if ($fname) {
+    push @files, [$fname, $body];
+}
+
+for my $file (@files) {
+    my ($fname, $body) = @$file;
+
+    if (!defined $body) {
+        $body = '';
+    }
+
+    if ($fname eq 'http_config') {
+        $fname = 'http.conf';
+    } elsif ($fname eq 'main_config') {
+        $fname = 'main.conf';
+    } elsif ($fname eq 'config') {
+        $fname = 'loc.conf';
+    } else {
+        $fname = 0;
+    }
+
+    if ($fname) {
+        open my $out, ">$conf_dir/$fname" or
+            die "$name - Cannot open $conf_dir/$fname for writing: $!\n";
+        print $out $body;
+        close $out;
+    }
+}
