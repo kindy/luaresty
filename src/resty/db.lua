@@ -3,6 +3,7 @@ local sql_null = require"rds.parser".null
 
 module(..., package.seeall)
 
+local _mod = getfenv(1)
 local db_query_loc_prefix = '/i_db_query'
 local mysql_thread_id_name = 'X-Mysql-Tid'
 local get_db_query_loc_by_type
@@ -223,6 +224,11 @@ get_db_query_loc_by_type = function (typ)
 end
 
 function build_ngxcfg_loc(db_cfg)
+    -- 使用 db:build_ngxcfg_loc 的方式调用
+    if db_cfg == _mod then db_cfg = _cfg end
+
+    -- TODO 根据 db_cfg 的类型生成若干 loc
+
     local buf = {}
 
     table.insert(buf, [[location = ]] .. get_db_query_loc_by_type'mysql' .. [[ {
@@ -237,6 +243,9 @@ function build_ngxcfg_loc(db_cfg)
 end
 
 function build_ngxcfg_ups(db_cfg)
+    -- 使用 db:build_ngxcfg_ups 的方式调用
+    if db_cfg == _mod then db_cfg = _cfg end
+
     local buf = {}
     for name, cfg in pairs(db_cfg) do
         table.insert(buf, 'upstream db_' .. name .. ' {')
@@ -265,14 +274,9 @@ function build_ngxcfg_ups(db_cfg)
     return '# resty.db generate db ups config\n' .. table.concat(buf, '\n')
 end
 
-function build_ngxcfg(db_cfg)
-    return build_ngxcfg_ups(db_cfg) .. '\n' .. build_ngxcfg_loc(db_cfg)
-end
-
-
 -- let db'abc' return DB:new'abc'
 do
-    local _meta = getmetatable(getfenv(1))
+    local _meta = getmetatable(_mod)
     local _db_cache = {}
     _meta.__call = function(db, name)
         if not _db_cache[name] and _cfg[name] then
