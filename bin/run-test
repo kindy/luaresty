@@ -57,8 +57,7 @@ else
     ($ngx_bin -sreload && sleep 1 || (echo 'restart ngx error'; exit 1)) >>$ngx_root/run.log 2>&1
 fi
 
-curl -s "localhost:$ngx_port/__t?_f=$3"
-#| tee -a $ngx_root/logs/content
+curl -s "localhost:$ngx_port/__t?_f=$3" | tee -a $ngx_root/logs/content
 $ngx_bin -sstop >>$ngx_root/run.log 2>&1
 
 if [ -f $lua_error_file ]; then
