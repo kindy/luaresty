@@ -26,7 +26,6 @@ require 'fix-ngx-io'
 require 'Test.More'
 
 local redis = require'resty.redis'
-local cjson = require'cjson'
 
 plan(5)
 
@@ -51,13 +50,13 @@ r0:set('a', 1)
 is(r0:get'a', '1', 'get value')
 
 r0:set('c', 2)
-is(cjson.encode(r0:mget('d', 'a', 'b', 'c')), cjson.encode{nil, '1', nil, '2'}, 'mget value')
+eq_array(r0:mget('d', 'a', 'b', 'c'), {nil, '1', nil, '2'}, 'mget value')
 
 r0:mset('c', 4, 'd', 3)
-is(cjson.encode(r0:mget('d', 'a', 'b', 'c')), cjson.encode{'3', '1', nil, '4'}, 'mget value')
+eq_array(r0:mget('d', 'a', 'b', 'c'), {'3', '1', nil, '4'}, 'mget value')
 
 r0:incr('c')
 is(r0:get'c', '5', 'mget value')
 
 r0:setbit('x', 1, 1)
-is(cjson.encode(r0:raw_query{ {'getbit', 'x', 0}, {'getbit', 'x', 1} }), cjson.encode{0, 1}, 'mget value')
+eq_array(r0:raw_query{ {'getbit', 'x', 0}, {'getbit', 'x', 1} }, {0, 1}, 'mget value')
