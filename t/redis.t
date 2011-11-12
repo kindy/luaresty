@@ -27,7 +27,7 @@ require 'Test.More'
 
 local redis = require'resty.redis'
 
-plan(5)
+plan(9)
 
 local redis_cfg = {
     main = {
@@ -43,7 +43,7 @@ local redis_cfg = {
 redis.config(redis_cfg)
 
 local r0 = redis'main'
-r0:del('a', 'b', 'c', 'd', 'e', 'x')
+r0:flushdb()
 
 r0:set('a', 1)
 
@@ -60,3 +60,44 @@ is(r0:get'c', '5', 'mget value')
 
 r0:setbit('x', 1, 1)
 eq_array(r0:raw_query{ {'getbit', 'x', 0}, {'getbit', 'x', 1} }, {0, 1}, 'mget value')
+
+
+-- pipe
+r0:flushdb()
+eq_array(r0:pipe()
+    :set('a', 1)
+    :get('a')
+    :incrby('a', 2)
+    :get('a')
+    :pipe_exec(),
+{'OK', '1', 3, '3'}, 'pipe')
+
+r0:flushdb()
+is(r0:pipe()
+    :set('a', 1)
+    :get('a')
+    :incrby('a', 2)
+    :get('a')
+    :pipe_exec({lastonly = true}),
+'3', 'pipe with lastonly = only')
+
+r0:flushdb()
+eq_array(r0:pipe(function (ctx)
+    ctx
+        :set('a', 1)
+        :get('a')
+        :incrby('a', 2)
+        :get('a')
+    end),
+{'OK', '1', 3, '3'}, 'pipe with fn')
+
+r0:flushdb()
+is(r0:pipe(function (ctx)
+    ctx
+        :set('a', 1)
+        :get('a')
+        :incrby('a', 2)
+        :get('a')
+    end, {lastonly = true}),
+'3', 'pipe with fn & lastonly = true')
+

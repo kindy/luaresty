@@ -40,9 +40,21 @@ reqs = {
         {"get", "foo"}
     }
 --]]
+
+local _cmds
+local _cmds_unsupport = {}
+do
+    local _json_file = string.gsub(_FILE, '%.[^.]+$', '.json', 1)
+    _cmds = cjson.decode(io.open(_json_file):read('*a'))
+    local _unsupports = {}
+    for _, k in ipairs(_unsupports) do
+        _cmds_unsupport[k] = true
+    end
+end
 function Redis:raw_query(reqs)
     table.insert(reqs, 1, {'select', self.db})
 
+    print('raw_query reqs->', cjson.encode(reqs))
     local raw_reqs = {}
     local reqs_n = #reqs
     local req_length = 0 -- use POST or GET
@@ -95,12 +107,35 @@ function Redis:raw_query(reqs)
     return ret
 end
 --[[
+=== NOT IMPL. ===
 local rslt = red:pipe(function()
     SET('xx', 1)
     GET'xx'
     INCR'xx'
     GET'xx'
 end)
+=== NOT IMPL. END ===
+
+local rslt = red:pipe(function(ctx)
+    ctx:set('xx', 1)
+    ctx:get'xx'
+    ctx:incr'xx'
+    ctx:get'xx'
+end, {lastonly = true})
+
+local rslt = red:pipe(function(ctx)
+    ctx:set('xx', 1)
+        :get'xx'
+        :incr'xx'
+        :get'xx'
+end, {lastonly = true})
+
+local rslt = red:pipe()
+    :set('xx', 1)
+    :get'xx'
+    :incr'xx'
+    :get'xx'
+:pipe_exec({lastonly = true})
 
 local rslt = red:raw_query{
     {'set', 'xx', 1},
@@ -109,22 +144,65 @@ local rslt = red:raw_query{
     {'get', 'xx'},
 }
 --]]
-function Redis:pipe(sql, ctx, opt)
+local RedisPipe = {}
+function RedisPipe:new(r)
+    local o = {r = r, _cmds = {}}
+
+    setmetatable(o, self)
+    self.__index = self
+
+    return o
+end
+function RedisPipe:pipe_exec(opt)
+    local _cmds = self._cmds
+
+    if 0 == #_cmds then
+        error('can not exec pipe with 0 cmds')
+    end
+
+    local _r = self.r:raw_query(_cmds)
+
+    if opt and opt.lastonly then
+        return _r[#_r]
+    else
+        return _r
+    end
+end
+setmetatable(RedisPipe, {
+    __index = function (m, key)
+        key = string.upper(key)
+        print('pipe got->', key)
+
+        local def = _cmds[key]
+        if def then
+            if _cmds_unsupport[key] then
+                error('command [' .. key .. '] unsupport now')
+            end
+
+            return function (self, ...)
+                table.insert(self._cmds,
+                    self.r:build_cmd(key, ...)
+                )
+
+                return self
+            end
+        end
+    end,
+})
+
+function Redis:pipe(fn, opt)
+    local p = RedisPipe:new(self)
+    if not fn then
+        return p
+    else
+        fn(p)
+        return p:pipe_exec(opt)
+    end
 end
 function Redis:build_cmd(...)
     return {...}
 end
 
-local _cmds
-local _cmds_unsupport = {}
-do
-    local _json_file = string.gsub(_FILE, '%.[^.]+$', '.json', 1)
-    _cmds = cjson.decode(io.open(_json_file):read('*a'))
-    local _unsupports = {}
-    for _, k in ipairs(_unsupports) do
-        _cmds_unsupport[k] = true
-    end
-end
 setmetatable(Redis, {
     __index = function (m, key)
         key = string.upper(key)

@@ -1,3 +1,35 @@
+h2. 部件
+
+    route   - 路由信息
+    log     - 日志
+    util    - 常用组件
+        header()    - 请求
+        cookie()    - 常用功能提取出来
+        sendmail()
+        to36 / from36
+    ctx
+    db      - 数据库操作
+    redis   - redis 操作
+    session - session 操作
+    tmpl - 模板
+    - global var
+        null -> cjson.null
+        re -> regex object
+        pat -> pattern -> vs. re (can be auto used)
+    json
+        .null
+        .encode -> to json string
+        .decode -> from json string
+    csv
+        .encode -> to csv format
+        .decode -> from csv format
+    xml
+        .toJSON
+        .fromJSON
+        .walk
+
+h2. 部署目录
+
 nginx-root/
     conf/
         nginx.conf
