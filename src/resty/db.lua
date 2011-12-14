@@ -148,7 +148,7 @@ function Seg:to_sql(ctx)
     local sql = self.sql
     local _seg = self
     local call_count = {}
-    local _quote_sql_str = ndk.set_var.set_quote_sql_str
+    local _quote_sql_str = ngx.quote_sql_str or ndk.set_var.set_quote_sql_str
 
     function quote(v)
         if type(v) == 'number' then
@@ -158,13 +158,20 @@ function Seg:to_sql(ctx)
         end
     end
 
-    return ngx.re.gsub(sql, '\\$(\\$+|(?:(\\w++):)?+([a-zA-Z0-9_-]++))', function(m)
+    -- 兼容旧版本的 ngx_lua
+    local use_ngx_re = ngx.re
+    local _re = use_ngx_re and ngx.re or require('rex_pcre')
+    return _re.gsub(sql, [[\$(\$+|(?:(\w++):)?+([a-zA-Z0-9_-]++))]], function(...)
+        local m = {...}
+
+        if use_ngx_re then
+            m = m[1]
+        end
         local esc, typ, key = m[1], m[2], m[3]
         if esc == '$' then
             return '$'
         end
 
-        -- print(esc, typ, key)
         local v = ctx[key]
         if not typ or typ == '' then
             typ = 'quote'
